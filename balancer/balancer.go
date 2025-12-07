@@ -74,7 +74,6 @@ func NewBackend(u *url.URL, weight int) *Backend {
 
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		b.CircuitBreaker.RecordFailure()
-		b.SetAlive(false)
 		w.WriteHeader(http.StatusBadGateway)
 		w.Write([]byte("Bad Gateway"))
 	}
@@ -82,7 +81,6 @@ func NewBackend(u *url.URL, weight int) *Backend {
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.StatusCode >= 500 {
 			b.CircuitBreaker.RecordFailure()
-			b.SetAlive(false)
 		} else {
 			b.CircuitBreaker.RecordSuccess()
 		}

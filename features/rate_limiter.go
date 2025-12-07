@@ -1,10 +1,9 @@
 /*
-    Author: Joyjeet Roy
+Author: Joyjeet Roy
 */
 package features
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -39,13 +38,9 @@ func (rl *RateLimiter) Allow() bool {
 	}
 	rl.lastRefillTime = now
 
-	
-	fmt.Printf("DEBUG: Tokens: %f, Capacity: %f\n", rl.tokens, rl.capacity)
-
 	if rl.tokens >= 1 {
 		rl.tokens--
 		return true
 	}
-	fmt.Println("DEBUG: Rate Limit Hit!")
 	return false
 }

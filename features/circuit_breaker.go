@@ -1,5 +1,5 @@
 /*
-    Author: Joyjeet Roy
+Author: Joyjeet Roy
 */
 package features
 
@@ -29,6 +29,7 @@ func (cb *CircuitBreaker) Allow() bool {
 
 	if cb.failures >= cb.threshold {
 		if time.Since(cb.lastFailedAt) > cb.timeout {
+			cb.failures = cb.threshold - 1
 			return true
 		}
 		return false

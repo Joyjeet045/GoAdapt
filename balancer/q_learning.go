@@ -23,46 +23,25 @@ type QLearning struct {
 	gamma      float64
 	maxQValue  float64
 	lastQDelta float64
+	cachedMaxQ float64
 }
 
 func NewQLearning(pool *ServerPool) *QLearning {
 	return &QLearning{
 		pool:    pool,
-		epsilon: 0.05,
-		alpha:   0.5,
+		epsilon: 0.01,
+		alpha:   0.3,
 		gamma:   0.95,
 	}
 }
 
-func (ql *QLearning) getMaxFutureQ() float64 {
-	maxQ := 0.0
-	ql.qTable.Range(func(key, value interface{}) bool {
-		if q, ok := value.(float64); ok {
-			if q > maxQ {
-				maxQ = q
-			}
-		}
-		return true
-	})
-	return maxQ
-}
-
 func (ql *QLearning) NextBackend(r *http.Request) *Backend {
-	ql.mux.Lock()
-	defer ql.mux.Unlock()
+	ql.mux.RLock()
+	defer ql.mux.RUnlock()
 
 	backends := ql.pool.Backends
 	if len(backends) == 0 {
 		return nil
-	}
-
-	if ql.epsilon > 0.01 && ql.maxQValue > 0 {
-		decayFactor := 1.0 - (ql.lastQDelta / ql.maxQValue)
-		if decayFactor > 0 && decayFactor < 1 {
-			ql.epsilon *= decayFactor
-		} else {
-			ql.epsilon *= 0.95
-		}
 	}
 
 	if rand.Float64() < ql.epsilon {
@@ -75,7 +54,7 @@ func (ql *QLearning) NextBackend(r *http.Request) *Backend {
 		if len(aliveBackends) > 0 {
 			return aliveBackends[rand.Intn(len(aliveBackends))]
 		}
-		return backends[rand.Intn(len(backends))]
+		return nil
 	}
 
 	var bestBackend *Backend
@@ -86,7 +65,7 @@ func (ql *QLearning) NextBackend(r *http.Request) *Backend {
 			continue
 		}
 
-		qVal := 100.0
+		qVal := 0.0
 		if val, exists := ql.qTable.Load(b.URL.String()); exists {
 			qVal = val.(float64)
 		}
@@ -120,13 +99,14 @@ func (ql *QLearning) OnRequestCompletion(u *url.URL, duration time.Duration, err
 	var reward float64
 
 	if err != nil {
-		reward = -1000.0
+		reward = -50.0
 	} else {
-		seconds := duration.Seconds()
-		if seconds <= 0 {
-			seconds = 0.0001
+		ms := float64(duration.Milliseconds())
+		reward = 100.0 - ms/10.0
+
+		if reward < -50.0 {
+			reward = -50.0
 		}
-		reward = (1.0 / (seconds * seconds)) + 50.0
 	}
 
 	oldQ := 0.0
@@ -134,8 +114,7 @@ func (ql *QLearning) OnRequestCompletion(u *url.URL, duration time.Duration, err
 		oldQ = val.(float64)
 	}
 
-	maxFutureQ := ql.getMaxFutureQ()
-	newQ := (1-ql.alpha)*oldQ + ql.alpha*(reward+ql.gamma*maxFutureQ)
+	newQ := (1-ql.alpha)*oldQ + ql.alpha*(reward+ql.gamma*ql.cachedMaxQ)
 
 	ql.qTable.Store(urlStr, newQ)
 
@@ -147,6 +126,25 @@ func (ql *QLearning) OnRequestCompletion(u *url.URL, duration time.Duration, err
 
 	if newQ > ql.maxQValue {
 		ql.maxQValue = newQ
+	}
+
+	if newQ > ql.cachedMaxQ {
+		ql.cachedMaxQ = newQ
+	}
+
+	// Epsilon decay: reduce exploration as we learn
+	if ql.epsilon > 0.001 && ql.maxQValue > 0 {
+		decayFactor := 1.0 - (ql.lastQDelta / ql.maxQValue)
+		if decayFactor > 0 && decayFactor < 1 {
+			ql.epsilon *= decayFactor
+		} else {
+			ql.epsilon *= 0.99
+		}
+
+		// Floor at 0.001 (0.1% exploration minimum)
+		if ql.epsilon < 0.001 {
+			ql.epsilon = 0.001
+		}
 	}
 
 	count := int64(0)

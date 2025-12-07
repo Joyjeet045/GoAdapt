@@ -75,37 +75,6 @@ SCENARIOS = {
         {"port": 8084, "latency": 0.01, "jitter": 0.00, "fail_rate": 0.50, "name": "CHAOS_4"},
         {"port": 8085, "latency": 0.20, "jitter": 0.00, "fail_rate": 0.00, "name": "CHAOS_5"},
     ],
-    "Fast_Error": [
-        {"port": 8081, "latency": 0.001, "jitter": 0.000, "fail_rate": 1.00, "name": "INSTANT_DEATH"},
-        {"port": 8082, "latency": 0.050, "jitter": 0.005, "fail_rate": 0.00, "name": "SAFE"},
-        {"port": 8083, "latency": 0.050, "jitter": 0.005, "fail_rate": 0.00, "name": "SAFE"},
-        {"port": 8084, "latency": 0.050, "jitter": 0.005, "fail_rate": 0.00, "name": "SAFE"},
-        {"port": 8085, "latency": 0.050, "jitter": 0.005, "fail_rate": 0.00, "name": "SAFE"},
-    ],
-    "Glitchy": [
-        {"port": 8081, "latency": 0.001, "jitter": 0.500, "fail_rate": 0.00, "name": "GLITCH"},
-        {"port": 8082, "latency": 0.050, "jitter": 0.005, "fail_rate": 0.00, "name": "SAFE"},
-        {"port": 8083, "latency": 0.050, "jitter": 0.005, "fail_rate": 0.00, "name": "SAFE"},
-        {"port": 8084, "latency": 0.050, "jitter": 0.005, "fail_rate": 0.00, "name": "SAFE"},
-        {"port": 8085, "latency": 0.050, "jitter": 0.005, "fail_rate": 0.00, "name": "SAFE"},
-    ],
-    "Safe_Haven": [
-        {"port": 8081, "latency": 0.010, "jitter": 0.010, "fail_rate": 0.50, "name": "BAD_1"},
-        {"port": 8082, "latency": 0.010, "jitter": 0.010, "fail_rate": 0.50, "name": "BAD_2"},
-        {"port": 8083, "latency": 0.010, "jitter": 0.010, "fail_rate": 0.50, "name": "BAD_3"},
-        {"port": 8084, "latency": 0.010, "jitter": 0.010, "fail_rate": 0.50, "name": "BAD_4"},
-        {"port": 8085, "latency": 0.100, "jitter": 0.010, "fail_rate": 0.00, "name": "HAVEN"},
-    ],
-    "Minefield": [
-        {"port": 8081, "latency": 0.001, "jitter": 0.000, "fail_rate": 0.20, "name": "MINE_1"},
-        {"port": 8082, "latency": 0.001, "jitter": 0.000, "fail_rate": 0.20, "name": "MINE_2"},
-        {"port": 8083, "latency": 0.001, "jitter": 0.000, "fail_rate": 0.20, "name": "MINE_3"},
-        {"port": 8084, "latency": 0.001, "jitter": 0.000, "fail_rate": 0.20, "name": "MINE_4"},
-        {"port": 8085, "latency": 0.050, "jitter": 0.000, "fail_rate": 0.00, "name": "SAFE"},
-    ],
-    "Consistency": [
-         {"port": PORTS[i], "latency": 0.030, "jitter": 0.000, "fail_rate": 0.0, "name": f"Stable_{i}"} for i in range(5)
-    ],
 }
 
 def write_lb_config(algo):
@@ -135,14 +104,15 @@ def run_test():
     return latencies, errors, duration
 
 def main():
-    print(f"Starting Comprehensive Benchmark Suite (10 Scenarios x 5 Algos)...")
+    scenario_names = list(SCENARIOS.keys())
+    total_scenarios = len(scenario_names)
+    print(f"Starting Comprehensive Benchmark Suite ({total_scenarios} Scenarios x {len(ALGORITHMS)} Algos)...")
     
     overall_results = []
     
-    scenario_names = list(SCENARIOS.keys())
     
     for i, scenario_name in enumerate(scenario_names):
-        print(f"\n\n=== Scenario {i+1}/10: {scenario_name} ===")
+        print(f"\n\n=== Scenario {i+1}/{total_scenarios}: {scenario_name} ===")
         
         
         servers = SCENARIOS[scenario_name]

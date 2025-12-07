@@ -11,7 +11,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,6 +22,16 @@ import (
 
 	"gopkg.in/yaml.v2"
 )
+
+type statusCapture struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (sc *statusCapture) WriteHeader(code int) {
+	sc.statusCode = code
+	sc.ResponseWriter.WriteHeader(code)
+}
 
 type Config struct {
 	Port        int    `yaml:"port"`
@@ -129,8 +138,26 @@ func reloadConfigHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var oldQTable map[string]float64
+	var oldCounts map[string]int64
+	var oldEpsilon, oldGamma, oldMaxQValue, oldLastQDelta float64
+
+	mu.RLock()
+	if ql, ok := globalLB.(*balancer.QLearning); ok {
+		oldQTable = make(map[string]float64)
+		oldCounts = make(map[string]int64)
+		ql.ExportState(&oldQTable, &oldCounts, &oldEpsilon, &oldGamma, &oldMaxQValue, &oldLastQDelta)
+		log.Println("Saved Q-Learning state for reload")
+	}
+	mu.RUnlock()
+
 	mu.Lock()
 	globalLB = initLB(newCfg)
+
+	if ql, ok := globalLB.(*balancer.QLearning); ok && oldQTable != nil {
+		ql.ImportState(oldQTable, oldCounts, oldEpsilon, oldGamma, oldMaxQValue, oldLastQDelta)
+		log.Println("Q-Learning state restored after reload")
+	}
 	mu.Unlock()
 
 	log.Println("Configuration reloaded successfully")
@@ -186,10 +213,12 @@ func main() {
 	}, healthInterval)
 
 	log.Printf("Starting Load Balancer on port %d with algorithm %s", cfg.Port, cfg.Algorithm)
-	rand.Seed(time.Now().UnixNano())
 
 	server := &http.Server{
-		Addr: fmt.Sprintf(":%d", cfg.Port),
+		Addr:         fmt.Sprintf(":%d", cfg.Port),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	http.HandleFunc("/reload", reloadConfigHandler)
@@ -209,9 +238,19 @@ func main() {
 
 		if err == nil {
 			for _, b := range lb.GetBackends() {
-				if b.URL.String() == cookie.Value && b.IsAlive() {
-					peer = b
-					break
+				if b.URL.String() == cookie.Value {
+					if b.IsAlive() {
+						peer = b
+						break
+					} else {
+						http.SetCookie(w, &http.Cookie{
+							Name:   "lb_session",
+							Value:  "",
+							Path:   "/",
+							MaxAge: -1,
+						})
+						break
+					}
 				}
 			}
 		}
@@ -231,16 +270,25 @@ func main() {
 			Path:  "/",
 		})
 
-		log.Printf("Forwarding to %s", peer.URL)
+		log.Printf("Forwarding to %s (Circuit: %v)", peer.URL, peer.CircuitBreaker.Allow())
 
 		atomic.AddInt64(&peer.ActiveConnections, 1)
 		defer atomic.AddInt64(&peer.ActiveConnections, -1)
 
-		peer.ReverseProxy.ServeHTTP(w, r)
+		capture := &statusCapture{ResponseWriter: w, statusCode: http.StatusOK}
 
-		duration := time.Since(time.Now())
-		features.RecordRequest(duration, false)
-		lb.OnRequestCompletion(peer.URL, duration, nil)
+		start := time.Now()
+		peer.ReverseProxy.ServeHTTP(capture, r)
+		duration := time.Since(start)
+
+		var requestErr error
+		isError := capture.statusCode >= 500 || capture.statusCode == http.StatusBadGateway
+		if isError {
+			requestErr = fmt.Errorf("backend error: status %d", capture.statusCode)
+		}
+
+		features.RecordRequest(duration, isError)
+		lb.OnRequestCompletion(peer.URL, duration, requestErr)
 	})
 
 	go func() {
@@ -248,6 +296,17 @@ func main() {
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 		<-quit
 		log.Println("Shutting down server...")
+
+		mu.RLock()
+		if ql, ok := globalLB.(*balancer.QLearning); ok {
+			qTablePath := "qtable.json"
+			if err := ql.Persist(qTablePath); err != nil {
+				log.Printf("Failed to save Q-table on shutdown: %v", err)
+			} else {
+				log.Println("Q-table saved successfully on shutdown")
+			}
+		}
+		mu.RUnlock()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
