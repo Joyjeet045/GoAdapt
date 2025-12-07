@@ -77,7 +77,7 @@ logs/
 *.out
 *.synctex.gz
 *.toc
-*.pdf
+# *.pdf  # Commented to allow technical_report.pdf
 
 # Temporary files
 *.tmp
