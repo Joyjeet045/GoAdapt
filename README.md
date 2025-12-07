@@ -1,8 +1,10 @@
-![Load Balancer](https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.png)
-
-# Go-Adapt: Intelligent Load Balancer
-
-> A production-ready HTTP load balancer with adaptive Q-Learning algorithm, built in Go.
+<div align="center">
+  <img src="https://img.icons8.com/fluency/96/000000/load-balancer.png" alt="Load Balancer" width="80"/>
+  
+  # 🔄 Go-Adapt: Intelligent Load Balancer
+  
+  > A production-ready HTTP load balancer with adaptive Q-Learning algorithm, built in Go.
+</div>
 
 ## Overview
 
@@ -67,23 +69,23 @@ Cookie-based sticky sessions ensure client requests route to the same backend.
 ## Architecture
 
 ```
-├── main.go                 # Entry point and HTTP server
+├── main.go
 ├── balancer/
-│   ├── balancer.go        # Core interfaces and backend management
-│   ├── algorithms.go      # Traditional load balancing algorithms
-│   └── q_learning.go      # Adaptive Q-Learning implementation
+│   ├── balancer.go
+│   ├── algorithms.go
+│   └── q_learning.go
 ├── features/
-│   ├── circuit_breaker.go # Failure isolation
-│   ├── rate_limiter.go    # Traffic throttling
-│   └── metrics.go         # Performance tracking
+│   ├── circuit_breaker.go
+│   ├── rate_limiter.go
+│   └── metrics.go
 ├── health/
-│   └── check.go           # Health monitoring
+│   └── check.go
 ├── scripts/
-│   ├── comprehensive_benchmark_suite.py  # 15-scenario test suite
-│   ├── comprehensive_test.py             # Feature validation
-│   └── benchmark_runner.py               # Single-run benchmarks
+│   ├── comprehensive_benchmark_suite.py
+│   ├── comprehensive_test.py
+│   └── benchmark_runner.py
 └── simulation/
-    └── mock_servers.py    # Configurable backend simulator
+    └── mock_servers.py
 ```
 
 ## Quick Start
@@ -163,23 +165,24 @@ python scripts/benchmark_runner.py
 ### Rate Limiter
 ```go
 rateLimiter = features.NewRateLimiter(1000, 500)
-// Capacity: 1000 tokens
-// Refill: 500 tokens/second
 ```
+Capacity: 1000 tokens | Refill: 500 tokens/second
 
 ### Circuit Breaker
 ```go
 CircuitBreaker: features.NewCircuitBreaker(3, 10*time.Second)
-// Threshold: 3 failures
-// Timeout: 10 seconds
 ```
+Threshold: 3 failures | Timeout: 10 seconds
 
 ### Q-Learning Parameters
 ```go
-epsilon: 0.05  // Exploration rate
-alpha: 0.5     // Learning rate
-gamma: 0.95    // Discount factor (temporal credit)
+epsilon: 0.05
+alpha: 0.5
+gamma: 0.95
 ```
+- **epsilon**: Exploration rate
+- **alpha**: Learning rate  
+- **gamma**: Discount factor (temporal credit)
 
 ## Performance
 
