@@ -1,9 +1,14 @@
 <div align="center">
-  <img src="https://img.icons8.com/fluency/96/000000/load-balancer.png" alt="Load Balancer" width="80"/>
-  
-  # 🔄 Go-Adapt: Intelligent Load Balancer
-  
-  > A production-ready HTTP load balancer with adaptive Q-Learning algorithm, built in Go.
+
+<img src="https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.svg" alt="Kubernetes" width="100"/>
+
+# 🔄 Go-Adapt
+### Reinforcement Learning-Powered Load Balancer
+
+[![Go](https://img.shields.io/badge/Go-1.19+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![Q-Learning](https://img.shields.io/badge/Algorithm-Q--Learning-orange?style=for-the-badge)](balancer/q_learning.go)
+
 </div>
 
 ## Overview
