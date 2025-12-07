@@ -1,0 +1,6 @@
+Algorithm,Total Requests,Concurrency,Throughput (Req/s),Avg Latency (ms),P95 Latency (ms),Error Rate (%)
+round-robin,500,10,234.76,38.24,44.23,0.0
+least-connections,500,10,238.85,38.08,44.37,0.0
+weighted-round-robin,500,10,244.15,37.64,42.6,0.0
+least-response-time,500,10,234.4,38.22,43.47,0.0
+q-learning,500,10,249.46,36.95,41.48,0.0
