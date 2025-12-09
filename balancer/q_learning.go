@@ -1,6 +1,3 @@
-/*
-Author: Joyjeet Roy
-*/
 package balancer
 
 import (
@@ -26,12 +23,12 @@ type QLearning struct {
 	cachedMaxQ float64
 }
 
-func NewQLearning(pool *ServerPool) *QLearning {
+func NewQLearning(pool *ServerPool, epsilon, alpha, gamma float64) *QLearning {
 	return &QLearning{
 		pool:    pool,
-		epsilon: 0.01,
-		alpha:   0.3,
-		gamma:   0.95,
+		epsilon: epsilon,
+		alpha:   alpha,
+		gamma:   gamma,
 	}
 }
 
@@ -132,7 +129,6 @@ func (ql *QLearning) OnRequestCompletion(u *url.URL, duration time.Duration, err
 		ql.cachedMaxQ = newQ
 	}
 
-	// Epsilon decay: reduce exploration as we learn
 	if ql.epsilon > 0.001 && ql.maxQValue > 0 {
 		decayFactor := 1.0 - (ql.lastQDelta / ql.maxQValue)
 		if decayFactor > 0 && decayFactor < 1 {
@@ -141,7 +137,6 @@ func (ql *QLearning) OnRequestCompletion(u *url.URL, duration time.Duration, err
 			ql.epsilon *= 0.99
 		}
 
-		// Floor at 0.001 (0.1% exploration minimum)
 		if ql.epsilon < 0.001 {
 			ql.epsilon = 0.001
 		}

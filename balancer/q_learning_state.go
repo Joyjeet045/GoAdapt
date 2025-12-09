@@ -1,6 +1,3 @@
-/*
-Author: Joyjeet Roy
-*/
 package balancer
 
 func (ql *QLearning) ExportState(qTable *map[string]float64, counts *map[string]int64, epsilon, gamma, maxQValue, lastQDelta *float64) {

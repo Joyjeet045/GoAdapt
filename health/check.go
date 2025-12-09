@@ -1,6 +1,3 @@
-/*
-    Author: Joyjeet Roy
-*/
 package health
 
 import (

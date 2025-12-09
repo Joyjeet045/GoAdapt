@@ -1,6 +1,3 @@
-/*
-Author: Joyjeet Roy
-*/
 package balancer
 
 import (
@@ -54,12 +51,12 @@ type LoadBalancer interface {
 	OnRequestCompletion(u *url.URL, duration time.Duration, err error)
 }
 
-func NewBackend(u *url.URL, weight int) *Backend {
+func NewBackend(u *url.URL, weight int, cbThreshold int, cbTimeout time.Duration) *Backend {
 	b := &Backend{
 		URL:            u,
 		Alive:          true,
 		Weight:         weight,
-		CircuitBreaker: features.NewCircuitBreaker(3, 10*time.Second),
+		CircuitBreaker: features.NewCircuitBreaker(cbThreshold, cbTimeout),
 	}
 
 	transport := &http.Transport{
