@@ -5,9 +5,6 @@
 # Go-Adapt
 ### Adaptive Reinforcement Learning Load Balancer
 
-[![Go Version](https://img.shields.io/badge/Go-1.19+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-
 </div>
 
 ---
@@ -128,7 +125,7 @@ Runs the load balancer against **10 distinct scenarios** (e.g., Jitter, Dead Nod
 ```bash
 python scripts/comprehensive_benchmark_suite.py
 ```
-> **Output**: `results/comprehensive_suite_results.csv`
+
 
 ### Q-Learning Efficiency Showcase
 Specifically demonstrates the superiority of Q-Learning in "Hidden Latency Trap" scenarios against standard algorithms.
