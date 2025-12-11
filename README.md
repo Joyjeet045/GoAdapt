@@ -41,6 +41,10 @@ Engineered for production environments where uptime is non-negotiable:
 *   **Active Health Checking**: Periodically probes backend health to ensure traffic is only routed to healthy nodes.
 *   **Rate Limiting**: Token-bucket based request limiting to protect against DoS attacks and traffic spikes.
 *   **Connection Pooling**: Optimized HTTP transport with persistent connections to minimize handshake overhead.
+*   **Request Tracing**: injects unique `X-Request-ID` for end-to-end request visibility.
+*   **Security Hardening**: Automated injection of HSTS, X-Frame-Options, and X-Content-Type-Options headers.
+*   **Compression**: Automatic Gzip compression for text-based responses to reduce bandwidth usage.
+*   **Health Endpoint**: Dedicated `/healthz` endpoint for external orchestrator health checks.
 
 ### Operational Excellence
 *   **Hot Configuration Reload**: Update routing rules and backend pools without zero downtime via the `/reload` endpoint.
@@ -161,6 +165,9 @@ python scripts/comprehensive_test.py
 | **Q-Learning Gamma** | `0.95` | Discount factor for future rewards. |
 | **Rate Limit** | `1000/s` | Maximum request capacity (burst). |
 | **Circuit Breaker** | `3 fails` | Threshold to trip the circuit. |
+| **Compression** | `true` | Enable Gzip compression. |
+| **Security Headers** | `true` | Enable standard security headers (HSTS, etc.). |
+| **Max Body Size** | `10MB` | Limit for request body size. |
 
 ---
 

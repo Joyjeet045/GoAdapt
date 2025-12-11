@@ -1,6 +1,3 @@
-/*
-Author: Joyjeet Roy
-*/
 package main
 
 import (
@@ -37,7 +34,31 @@ type Config struct {
 	Port        int    `yaml:"port"`
 	Algorithm   string `yaml:"algorithm"`
 	HealthCheck string `yaml:"health_check_interval"`
-	Backends    []struct {
+	QLearning   struct {
+		Alpha   float64 `yaml:"alpha"`
+		Gamma   float64 `yaml:"gamma"`
+		Epsilon float64 `yaml:"epsilon"`
+	} `yaml:"q_learning"`
+	Middleware struct {
+		Compress        bool  `yaml:"compress"`
+		MaxBodySize     int64 `yaml:"max_body_size"`
+		SecurityHeaders bool  `yaml:"security_headers"`
+	} `yaml:"middleware"`
+	CircuitBreaker struct {
+		Threshold int    `yaml:"threshold"`
+		Timeout   string `yaml:"timeout"`
+	} `yaml:"circuit_breaker"`
+	RateLimiter struct {
+		Enabled bool `yaml:"enabled"`
+		Limit   int  `yaml:"limit"`
+		Burst   int  `yaml:"burst"`
+	} `yaml:"rate_limiter"`
+	SSL struct {
+		Enabled  bool   `yaml:"enabled"`
+		CertFile string `yaml:"cert_file"`
+		KeyFile  string `yaml:"key_file"`
+	} `yaml:"ssl"`
+	Backends []struct {
 		URL    string `yaml:"url"`
 		Weight int    `yaml:"weight"`
 	} `yaml:"backends"`
@@ -68,13 +89,23 @@ func initLB(cfg *Config) balancer.LoadBalancer {
 		Backends: make([]*balancer.Backend, 0),
 	}
 
+	cbThreshold := cfg.CircuitBreaker.Threshold
+	if cbThreshold <= 0 {
+		cbThreshold = 3
+	}
+
+	cbTimeout, err := time.ParseDuration(cfg.CircuitBreaker.Timeout)
+	if err != nil {
+		cbTimeout = 10 * time.Second
+	}
+
 	for _, b := range cfg.Backends {
 		u, err := url.Parse(b.URL)
 		if err != nil {
 			log.Printf("Invalid backend URL %s: %v", b.URL, err)
 			continue
 		}
-		pool.Backends = append(pool.Backends, balancer.NewBackend(u, b.Weight))
+		pool.Backends = append(pool.Backends, balancer.NewBackend(u, b.Weight, cbThreshold, cbTimeout))
 	}
 
 	var lb balancer.LoadBalancer
@@ -84,7 +115,19 @@ func initLB(cfg *Config) balancer.LoadBalancer {
 	case "least-connections":
 		lb = balancer.NewLeastConnections(pool)
 	case "q-learning":
-		lb = balancer.NewQLearning(pool)
+		epsilon := cfg.QLearning.Epsilon
+		if epsilon == 0 {
+			epsilon = 0.01
+		}
+		alpha := cfg.QLearning.Alpha
+		if alpha == 0 {
+			alpha = 0.3
+		}
+		gamma := cfg.QLearning.Gamma
+		if gamma == 0 {
+			gamma = 0.95
+		}
+		lb = balancer.NewQLearning(pool, epsilon, alpha, gamma)
 	case "weighted-round-robin":
 		lb = balancer.NewWeightedRoundRobin(pool)
 	case "ip-hash":
@@ -176,7 +219,16 @@ func main() {
 
 	globalLB = initLB(cfg)
 
-	rateLimiter = features.NewRateLimiter(1000, 500)
+	rlLimit := cfg.RateLimiter.Limit
+	if rlLimit <= 0 {
+		rlLimit = 1000
+	}
+	rlBurst := cfg.RateLimiter.Burst
+	if rlBurst <= 0 {
+		rlBurst = 500
+	}
+
+	rateLimiter = features.NewRateLimiter(float64(rlBurst), float64(rlLimit))
 
 	if cfg.Algorithm == "q-learning" {
 		if ql, ok := globalLB.(*balancer.QLearning); ok {
@@ -223,8 +275,13 @@ func main() {
 
 	http.HandleFunc("/reload", reloadConfigHandler)
 	http.HandleFunc("/stats", features.MetricsHandler)
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if !rateLimiter.Allow() {
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+
+	mainHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if cfg.RateLimiter.Enabled && !rateLimiter.Allow() {
 			http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 			return
 		}
@@ -270,8 +327,6 @@ func main() {
 			Path:  "/",
 		})
 
-		log.Printf("Forwarding to %s (Circuit: %v)", peer.URL, peer.CircuitBreaker.Allow())
-
 		atomic.AddInt64(&peer.ActiveConnections, 1)
 		defer atomic.AddInt64(&peer.ActiveConnections, -1)
 
@@ -287,9 +342,41 @@ func main() {
 			requestErr = fmt.Errorf("backend error: status %d", capture.statusCode)
 		}
 
-		features.RecordRequest(duration, isError)
+		features.RecordRequest(duration, capture.statusCode)
 		lb.OnRequestCompletion(peer.URL, duration, requestErr)
+
+		log.Printf(`{"time":"%s","client":"%s","method":"%s","path":"%s","backend":"%s","status":%d,"duration_ms":%d,"error":"%v"}`,
+			start.Format(time.RFC3339),
+			r.RemoteAddr,
+			r.Method,
+			r.URL.Path,
+			peer.URL.String(),
+			capture.statusCode,
+			duration.Milliseconds(),
+			requestErr,
+		)
 	})
+
+	middlewares := []features.Middleware{
+		features.TracingMiddleware,
+		features.ProxyHeadersMiddleware,
+	}
+
+	if cfg.Middleware.MaxBodySize > 0 {
+		middlewares = append(middlewares, features.MaxBodySizeMiddleware(cfg.Middleware.MaxBodySize))
+	}
+
+	if cfg.Middleware.SecurityHeaders {
+		middlewares = append(middlewares, features.SecurityHeadersMiddleware)
+	}
+
+	if cfg.Middleware.Compress {
+		middlewares = append(middlewares, features.GzipMiddleware)
+	}
+
+	finalHandler := features.Chain(mainHandler, middlewares...)
+	log.Println("Initializing Middleware chain and registering handlers...")
+	http.Handle("/", finalHandler)
 
 	go func() {
 		quit := make(chan os.Signal, 1)
@@ -317,7 +404,15 @@ func main() {
 		log.Println("Server exited")
 	}()
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Could not listen on %s: %v", server.Addr, err)
+	if cfg.SSL.Enabled {
+		log.Printf("Starting HTTPS Load Balancer on port %d", cfg.Port)
+		if err := server.ListenAndServeTLS(cfg.SSL.CertFile, cfg.SSL.KeyFile); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Could not listen on %s: %v", server.Addr, err)
+		}
+	} else {
+		log.Printf("Starting HTTP Load Balancer on port %d", cfg.Port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Could not listen on %s: %v", server.Addr, err)
+		}
 	}
 }

@@ -1,8 +1,39 @@
-algorithm: q-learning
-backends:
-- url: http://localhost:8081
-  weight: 1
-- url: http://localhost:8082
-  weight: 1
-health_check_interval: 10s
 port: 8080
+algorithm: q-learning
+health_check_interval: 1s
+
+q_learning:
+  alpha: 0.3
+  gamma: 0.95
+  epsilon: 0.01
+
+middleware:
+  compress: true
+  max_body_size: 10485760 # 10MB
+  security_headers: true
+
+circuit_breaker:
+  threshold: 3
+  timeout: 10s
+
+rate_limiter:
+  enabled: true
+  limit: 1000
+  burst: 500
+
+ssl:
+  enabled: false
+  cert_file: ""
+  key_file: ""
+
+backends:
+  - url: http://localhost:8081
+    weight: 1
+  - url: http://localhost:8082
+    weight: 1
+  - url: http://localhost:8083
+    weight: 1
+  - url: http://localhost:8084
+    weight: 1
+  - url: http://localhost:8085
+    weight: 1

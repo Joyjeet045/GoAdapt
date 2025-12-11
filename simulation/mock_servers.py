@@ -1,6 +1,4 @@
-#
-#    Author: Joyjeet Roy
-#
+
 import http.server
 import socketserver
 import time
