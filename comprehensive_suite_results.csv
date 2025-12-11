@@ -1,6 +1,0 @@
-Algorithm,Avg_RPS,Avg_Latency,Avg_Error_Rate
-least-connections,223.65,116.58,0.3
-round-robin,213.78,107.84,0.35
-q-learning,212.2,116.4,0.35
-weighted-round-robin,201.98,118.64,0.25
-least-response-time,200.68,120.35,0.2
