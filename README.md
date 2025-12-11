@@ -1,115 +1,93 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.svg" alt="Kubernetes" width="100"/>
+<img src="https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.svg" alt="Logo" width="120"/>
 
-# 🔄 Go-Adapt
-### Reinforcement Learning-Powered Load Balancer
+# Go-Adapt
+### Adaptive Reinforcement Learning Load Balancer
 
-[![Go](https://img.shields.io/badge/Go-1.19+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![Q-Learning](https://img.shields.io/badge/Algorithm-Q--Learning-orange?style=for-the-badge)](balancer/q_learning.go)
+[![Go Version](https://img.shields.io/badge/Go-1.19+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 </div>
 
-## Overview
+---
 
-Go-Adapt is an advanced load balancing solution that intelligently distributes traffic across backend servers. Unlike traditional static algorithms, it employs reinforcement learning to adapt to real-time conditions, optimizing for both performance and reliability.
+## 📖 Overview
 
-## Key Features
+**Go-Adapt** is a high-performance, adaptive layer-7 load balancer engineered in Go. It distinguishes itself from traditional load balancers by incorporating **Reinforcement Learning (Q-Learning)** to dynamically adapt to backend server states in real-time.
 
-### 🧠 Intelligent Routing Algorithms
-- **Q-Learning** - Adaptive algorithm with:
-  - Reinforcement learning with adaptive epsilon decay
-  - Discount factor (γ=0.95) for temporal credit assignment
-  - Q-table persistence (survives restarts)
-  - Lock-free concurrent access (sync.Map)
-  - **Best Performance**: 249.46 RPS in production tests
-- **Round Robin** - Classic sequential distribution
-- **Weighted Round Robin** - Priority-based traffic distribution
-- **Least Connections** - Routes to servers with fewest active connections
-- **Least Response Time** - Selects fastest responding backend
-- **IP Hash** - Consistent routing based on client IP
+Designed for resilience and efficiency, Go-Adapt overcomes the limitations of static algorithms (like Round Robin) by learning from latency patterns, error rates, and connection loads to optimize traffic distribution autonomously.
 
-**Implementation**: `balancer/algorithms.go`, `balancer/q_learning.go`
+---
 
-### 🛡️ Production-Grade Protection
+## 🚀 Key Features
 
-#### Circuit Breaker
-Automatically isolates failing backends to prevent cascade failures. Configurable failure threshold and recovery timeout.
+### Intelligent Traffic Routing
+The core of Go-Adapt is its suite of routing strategies, headlined by its adaptive engine:
 
-**Implementation**: `features/circuit_breaker.go`
+*   **Q-Learning (Adaptive)**: Utilizes a Reinforcement Learning agent to balance traffic based on historical performance rewards.
+    *   **Reward Function**: `100.0 - (latency_ms / 10.0)` — Balances latency minimization with stability.
+    *   **Exploration**: Adaptive epsilon-greedy strategy with decay.
+    *   **Persistence**: State preservation across restarts for continuous learning.
+*   **Weighted Round Robin**: Standard traffic distribution respecting server capacity weights.
+*   **Least Connections**: Dynamically routes to the server with the lowest active load.
+*   **Least Response Time**: Prioritizes the backend with the fastest recent response metrics.
+*   **IP Hash**: Ensures session consistency by hashing client IP addresses.
 
-#### Rate Limiting
-Token bucket algorithm prevents abuse and ensures fair resource allocation. Configurable capacity and refill rate.
+### Reliability & Resilience
+Engineered for production environments where uptime is non-negotiable:
 
-**Implementation**: `features/rate_limiter.go`
+*   **Circuit Breaking**: Automatically detects and isolates failing backends to prevent cascading system failures.
+*   **Active Health Checking**: Periodically probes backend health to ensure traffic is only routed to healthy nodes.
+*   **Rate Limiting**: Token-bucket based request limiting to protect against DoS attacks and traffic spikes.
+*   **Connection Pooling**: Optimized HTTP transport with persistent connections to minimize handshake overhead.
 
-#### Active Health Checks
-Periodic health monitoring with automatic backend status updates. Unhealthy servers are removed from rotation.
+### Operational Excellence
+*   **Hot Configuration Reload**: Update routing rules and backend pools without zero downtime via the `/reload` endpoint.
+*   **Real-Time Observability**: Comprehensive metrics exposed via `/stats` for monitoring throughput, latency, and error rates.
+*   **Session Persistence**: Sticky sessions via cookies to maintain user state across requests.
 
-**Implementation**: `health/check.go`
+---
 
-#### Connection Pooling
-HTTP transport optimization with connection reuse. Reduces latency through persistent connections.
+## 🏗️ Architecture
 
-**Implementation**: `balancer/balancer.go` (MaxIdleConns: 100, MaxIdleConnsPerHost: 10)
-
-### 🔄 Operational Features
-
-#### Hot Reload
-Update configuration without downtime via `/reload` endpoint. Includes validation to prevent invalid configs.
-
-**Implementation**: `main.go` (reloadConfigHandler with validateConfig)
-
-#### Metrics & Monitoring
-Real-time performance metrics exposed via `/stats` endpoint.
-
-**Implementation**: `features/metrics.go`
-
-#### Session Persistence
-Cookie-based sticky sessions ensure client requests route to the same backend.
-
-**Implementation**: `main.go` (lb_session cookie)
-
-## Architecture
+The project follows a modular, clean architecture designed for maintainability and scalability.
 
 ```
-├── main.go
-├── balancer/
-│   ├── balancer.go
-│   ├── algorithms.go
-│   └── q_learning.go
-├── features/
-│   ├── circuit_breaker.go
-│   ├── rate_limiter.go
-│   └── metrics.go
-├── health/
-│   └── check.go
-├── scripts/
-│   ├── comprehensive_benchmark_suite.py
-│   ├── comprehensive_test.py
-│   └── benchmark_runner.py
-└── simulation/
-    └── mock_servers.py
+.
+├── main.go                     # Entry point & HTTP server
+├── balancer/                   # Core Load Balancing Logic
+│   ├── algorithms.go           # Static Algorithms (RR, WRR, LC, etc.)
+│   ├── q_learning.go           # Q-Learning Implementation
+│   ├── q_learning_state.go     # State Persistence & Management
+│   └── balancer.go             # Common Interfaces & Connection Pooling
+├── features/                   # Cross-Cutting Concerns
+│   ├── circuit_breaker.go      # Failure Isolation Logic
+│   ├── rate_limiter.go         # Traffic Control
+│   └── metrics.go              # Telemetry & Stats
+├── health/                     # Health Monitoring
+│   └── check.go                # Periodic Probe Logic
+└── scripts/                    # Testing & Benchmarking tools
 ```
 
-## Quick Start
+---
+
+## 🛠️ Quick Start
 
 ### Prerequisites
-- Go 1.19+
-- Python 3.8+ (for testing)
+*   **Go**: Version 1.19 or higher
+*   **Python**: Version 3.8+ (Required only for running benchmark suites)
 
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/advanced-lb.git
-cd advanced-lb
+git clone https://github.com/Joyjeet045/GoAdapt.git
+cd GoAdapt
 go mod download
 ```
 
 ### Configuration
-
-Edit `config.yaml`:
+Configure the listener and backends in `config.yaml`:
 
 ```yaml
 port: 8080
@@ -122,83 +100,76 @@ backends:
     weight: 1
 ```
 
-### Running
+### Execution
 
-```bash
-# Start the load balancer
-go run main.go
+1.  **Start the Load Balancer**:
+    ```bash
+    go run main.go
+    ```
 
-# In another terminal, start mock backends
-python simulation/mock_servers.py
-```
+2.  **Start Mock Backends (Optional)**:
+    ```bash
+    python simulation/mock_servers.py
+    ```
 
-## Testing & Benchmarking
+---
 
-### Comprehensive Test Suite
-Validates all features across 15 diverse scenarios:
+## 📊 Benchmarking & Testing
+
+Go-Adapt includes a comprehensive suite of performance tests to validate its behavior under various conditions.
+
+### Comprehensive Suite
+Runs the load balancer against **10 distinct scenarios** (e.g., Jitter, Dead Nodes, Latency Traps) to verify adaptability.
 
 ```bash
 python scripts/comprehensive_benchmark_suite.py
 ```
+> **Output**: `results/comprehensive_suite_results.csv`
 
-Results saved to `results/comprehensive_suite_results.csv`
+### Q-Learning Efficiency Showcase
+Specifically demonstrates the superiority of Q-Learning in "Hidden Latency Trap" scenarios against standard algorithms.
 
-### Feature Testing
-Tests rate limiting, hot reload, and circuit breakers:
+```bash
+python scripts/q_learning_showcase_benchmark.py
+```
+
+### Feature Validation
+Validates operational features such as Hot Reloading, Rate Limiting, and Circuit Breaking.
 
 ```bash
 python scripts/comprehensive_test.py
 ```
 
-### Single Algorithm Benchmark
-Quick performance test:
+---
 
-```bash
-python scripts/benchmark_runner.py
-```
-
-## API Endpoints
+## 📡 API Reference
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Proxies request to backend |
-| `/reload` | GET | Hot-reloads configuration |
-| `/stats` | GET | Returns performance metrics |
+| :--- | :--- | :--- |
+| `/` | `ANY` | Proxies traffic to the selected backend. |
+| `/reload` | `GET` | Triggers a zero-downtime configuration reload. |
+| `/stats` | `GET` | Returns JSON-formatted metrics and system status. |
 
-## Configuration Parameters
+---
 
-### Rate Limiter
-```go
-rateLimiter = features.NewRateLimiter(1000, 500)
-```
-Capacity: 1000 tokens | Refill: 500 tokens/second
+## ⚙️ Configuration Details
 
-### Circuit Breaker
-```go
-CircuitBreaker: features.NewCircuitBreaker(3, 10*time.Second)
-```
-Threshold: 3 failures | Timeout: 10 seconds
+| Parameter | Default | Description |
+| :--- | :--- | :--- |
+| **Q-Learning Epsilon** | `0.01` | Initial exploration rate (decays over time). |
+| **Q-Learning Alpha** | `0.3` | Learning rate (speed of adaptation). |
+| **Q-Learning Gamma** | `0.95` | Discount factor for future rewards. |
+| **Rate Limit** | `1000/s` | Maximum request capacity (burst). |
+| **Circuit Breaker** | `3 fails` | Threshold to trip the circuit. |
 
-### Q-Learning Parameters
-```go
-epsilon: 0.05
-alpha: 0.5
-gamma: 0.95
-```
-- **epsilon**: Exploration rate
-- **alpha**: Learning rate  
-- **gamma**: Discount factor (temporal credit)
+---
 
-## Performance
-
-Tested across 15 scenarios including high jitter, failure injection, and variable latency. Q-Learning demonstrates superior adaptability in complex environments.
-
-See `results/` directory for detailed benchmark data.
-
-## Author
+## 👨‍💻 Author
 
 **Joyjeet Roy**
 
-## License
+---
 
-MIT License - see LICENSE file for details
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
